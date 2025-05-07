@@ -1,85 +1,105 @@
-# System Transparency OS images
+# CantinaOS
 
-This repository contains a set of shell scripts and an example
-Makefile for assembling System Transparency OS images and testing them
-in a virtual machine using qemu and KVM.
+This repository contains instructions, assets and tips for building, running
+and developing an image for amnesic tor linux.
 
-OS images are also known as OS packages or ospkg's.
+Some basic assumption are:
 
-WARNING: The way you as a user interact with these tools **will** change!
-See the [interface][#Interface] section below for details.
+- this is only a script around
+  [stimages](https://git.glasklar.is/system-transparency/core/stimages) project
+- the image is debian
+- docker is not mandatory, but really reccomanded for building
 
-NOTE: This repository is only able to build Debian images.
+What to expect from this repo:
 
-## System Transparency overview
+- build the image for **stboot**
+- build the image for the real live **OS** (aka **CantinaOS**)
 
-In [System Transparency][], the boot loader [stboot][] loads a signed
-OS image containing a Linux kernel, a kernel command line and an
-initial ramdisk (aka initramfs or initrd). stboot then verifies the OS
-image signature(s) and runs the kernel with the provided arguments and
-initramfs.
+## TODOs
 
-TODO: talk about provisioning and host specific data
+- [ ] smaller stboot kernel conf
+- [ ] automatic set up all devices to able to detect connected cables
 
-Once the OS image has been booted it configures itself to provide the
-service it's meant for. How this is done is up to the operator of the
-system (you). This repository contains an example configuration
-setting up a local DNS resolver and a single network service on port
-4711/tcp.
+## Basic setup
 
-[System Transparency]: https://www.system-transparency.org/
-[stboot]: https://git.glasklar.is/system-transparency/core/stboot
+Setup root pwd
 
-## Trying it out
+```console
+echo "my root pwd" >> config/cantina/pw.root
+```
 
-### Building an OS image
+Pick up [patela](https://github.com/osservatorionessuno/patela) patela build
+and place in `config/cantina/overlays/vanilla/usr/sbin/patela`.
 
-To build an OS image, try running `make stimage`.
+## Dev setup
 
-The example Makefile will try to run everything needed in order to
-produce an ST image, output to build/stimage.{json,zip}.
+There are some deps to install, if you are on debian you can run
 
-You will need a go compiler and a long list of other tools to complete
-the build. If you're on a system without `mmdebstrap`, installing
-`podman` will be necessary. Building the initramfs using
-`build-initramfs` and the STDATA filesystem image using `mkstdata.sh`
-currently require `sudo` to root.
+```console
+apt-get -qq update
+apt-get install -qqy ca-certificates make cpio mmdebstrap libsystemd-shared
 
-If you get tired of hunting down all the dependencies, `make
-check-all-dependencies` will list all commands missing on your system
-for doing everything in the example Makefile.
+go install system-transparency.org/stmgr@v0.4.1
+go install system-transparency.org/stboot@v0.4.1
+```
 
+Or there is a pre-build docker image that you can compile with
 
-### Booting an OS image in a virtual machine
+```console
+docker build -t cantinaos .
+```
 
-To boot your image, try running `make boot`.
+## Dev
 
-This will first build an ISO with stboot as init and contain a default
-config and ST root certificate.
+Build the image
 
-It will then start a VM, using QEMU, booting the ISO.
+```console
+docker run --rm -it -v $PWD:/stimages cantina/stboot:latest make
+```
 
-## Configuring your own image
+Build the stboot live image
 
-See config/example/README.md for an example of how to configure an OS image.
+```console
+docker run --rm -it -v $PWD:/stimages cantina/stboot:latest make stboot-iso
+```
 
-## User interface
+Then to share the image for simulating a real-world scenario
 
-The way users interact with the tools in this repository **will**
-change. Both in the short perspective when we find out that we need
-more functionality which isn't easily added while keeping the
-interface compatible. But also in the longer perspective when we start
-using [mkosi][] for building OS images.
+```console
+docker run --name stboot -v $PWD/build:/usr/share/nginx/html -d -p 8080:80 nginx
+```
 
-mkosi will be helpful by wrapping distro specific tools like
-`mmdebstrap`, `dnf --installroot` and `pacman`, and allow support for
-all Linux distributions that mkosi knows about.
+In order to test with qemu you need `edk2-ovmf`.
 
-The reason for publishing this repository before it has a stable
-interface is to give a hint of how OS images can be built while
-waiting. For an example of how we build OS images for both test and
-production use, see
-https://git.glasklar.is/system-transparency/project/qa-images and
-https://git.glasklar.is/glasklar/infra/images.
+```console
+qemu-system-x86_64 \
+    -m 8G \
+    -accel kvm \
+    -accel tcg \
+    -pidfile qemu.pid \
+    -no-reboot \
+    -nographic \
+    -rtc base=localtime \
+    -drive if=pflash,format=raw,file=/usr/share/OVMF/x64/OVMF_CODE.4m.fd,readonly=on \
+    -drive if=pflash,format=raw,file=/usr/share/OVMF/x64/OVMF_VARS.4m.fd \
+    -object rng-random,filename=/dev/urandom,id=rng0 \
+    -device virtio-rng-pci,rng=rng0 \
+    -drive file="stimages/build/stboot.iso",format=raw,if=none,media=cdrom,id=drive-cd1,readonly=on \
+    -device ahci,id=ahci0 -device ide-cd,bus=ahci0.0,drive=drive-cd1,id=cd1,bootindex=1
+```
 
-[mkosi]: https://github.com/systemd/mkosi
+Se vuoi invece testare solo l'immagine
+
+```console
+
+qemu-system-x86_64 \
+    -m 8G \
+    -accel kvm \
+    -accel tcg \
+    -pidfile qemu.pid \
+    -no-reboot \
+    -nographic \
+    -kernel stimages/build/debian-bookworm-amd64.vmlinuz \
+    -initrd stimages/build/debian-bookworm-amd64.cpio.gz \
+    -append "console=ttyS0,115200n8 ro rdinit=/lib/systemd/systemd systemd.log_level=debug"
+```
