@@ -7,6 +7,7 @@ curl
 dbus
 dialog
 file
+htop
 initramfs-tools
 iproute2
 iputils-ping
@@ -27,6 +28,8 @@ sudo
 systemd
 sysvinit-core
 tmux
+bmon
+tcpdump
 tor
 vim
 xz-utils
