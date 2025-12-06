@@ -9,7 +9,7 @@ OUT="$1"; shift			# NOTE: Relative to $(dirname $0)
 FLAVOUR=${FLAVOUR-vanilla}
 KERNEL_DEB=${KERNEL_DEB-}
 
-DEBIAN_RELEASE=bookworm
+DEBIAN_RELEASE=trixie
 PKGLIST_BASE="$CONFIG"/pkgs/000base.pkglist
 
 OUTDIR=$(dirname "$OUT")
@@ -30,9 +30,9 @@ build_rootfs() {
     ### Build APT sources.list
     sources_list="$OUTDIR"/sources.list
     case "$DEBIAN_RELEASE" in	# https://wiki.debian.org/SourcesList
-	bookworm)
+	trixie)
 	    # NOTE: non-free-firmware for intel-microcode on physical machines
-	    DEBIAN_COMPONENTS="main non-free-firmware"
+	    DEBIAN_COMPONENTS="main contrib non-free non-free-firmware"
 	    cat >$sources_list <<EOF
 deb https://ftp.acc.umu.se/debian/          $DEBIAN_RELEASE          $DEBIAN_COMPONENTS
 deb https://ftp.acc.umu.se/debian/          $DEBIAN_RELEASE-updates  $DEBIAN_COMPONENTS
