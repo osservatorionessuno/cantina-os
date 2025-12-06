@@ -3,6 +3,3 @@ config/example/pw.root
 go
 hosts
 keys
-**/patela-client
-**/pw.root
-config/cantina/overlays/base/root/.ssh/authorized_keys
