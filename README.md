@@ -31,6 +31,8 @@ echo "my root pwd" >> config/cantina/pw.root
 Pick up [patela](https://github.com/osservatorionessuno/patela) patela build
 and place in `config/cantina/overlays/vanilla/usr/sbin/patela`.
 
+In `Makefile` the `NETBOOT_URL` is used for fetching the os image.
+
 ## Dev setup
 
 There are some deps to install, if you are on debian you can run
@@ -46,7 +48,13 @@ go install system-transparency.org/stboot@v0.4.1
 Or there is a pre-build docker image that you can compile with
 
 ```console
-docker build -t cantinaos .
+docker buildx build -t osservatorionessuno/stimage .
+```
+
+Now move the patela-client in place
+
+```console
+cp <YOUR PATELA DIRECTORY>/target/x86_64-unknown-linux-gnu/release/patela-client config/cantina/overlays/base/usr/sbin/patela-client
 ```
 
 ## Dev
@@ -54,13 +62,29 @@ docker build -t cantinaos .
 Build the image
 
 ```console
-docker run --rm -it -v $PWD:/stimages cantina/stboot:latest make
+docker run --rm -it -v $PWD:/stimages osservatorionessuno/stimage:latest make -f <YOUR_MAKE_FILE>
 ```
 
 Build the stboot live image
 
+Download last kernel
+
+```
+curl https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.17.7.tar.xz | tar xJf - && mv linux-6.17.7 linux
+```
+
+Configure and make the kernel
+
 ```console
-docker run --rm -it -v $PWD:/stimages cantina/stboot:latest make stboot-iso
+cp contrib/stboot/linuxboot.defconfig linux/.config
+cd linux
+make # if you don't know accept default values
+cp vmlinux ../contrib/stboot/linuxboot.vmlinuz
+cd ..
+```
+
+```console
+docker run --rm -it -v $PWD:/stimages osservatorionessuno/stimage:latest make stboot-iso
 ```
 
 Then to share the image for simulating a real-world scenario
