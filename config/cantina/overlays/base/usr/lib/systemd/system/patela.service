@@ -5,8 +5,9 @@ Description=ON Patela client
 Type=oneshot
 User=root
 ExecStart=/usr/sbin/patela-client \
---server https://10.10.10.1:8020 \
---tpm2 /dev/tpmrm0
+--tpm2 /dev/tpmrm0 \
+run \
+--server https://10.10.10.1:8020
 
 [Install]
 WantedBy=multi-user.target
